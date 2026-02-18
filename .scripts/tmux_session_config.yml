@@ -1,0 +1,8 @@
+os:
+  edit: "lg-nvim-open.sh {{filename}} 1"
+  editAtLine: "lg-nvim-open.sh {{filename}} {{line}}"
+  editAtLineAndWait: "lg-nvim-open.sh {{filename}} {{line}}"
+  editInTerminal: false
+  open: "lg-nvim-open.sh {{filename}} 1"
+  openDirInEditor: "lg-nvim-open.sh {{dir}}"
+
