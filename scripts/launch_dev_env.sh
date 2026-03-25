@@ -47,7 +47,7 @@ shift $((OPTIND - 1))
 NVIM_SOCK="/tmp/nvim-${SESSION}.sock"
 HAS_CODEX=0
 SHARED_VENV_PATH=""
-PATH_PREFIX="${PROJECT_DIR}/.scripts:${SCRIPT_DIR}"
+PATH_PREFIX="${PROJECT_DIR}/scripts:${SCRIPT_DIR}"
 SESSION_TMPDIR="${HOME}/tmp/tmux-${SESSION}"
 if command -v codex >/dev/null 2>&1; then
   HAS_CODEX=1
