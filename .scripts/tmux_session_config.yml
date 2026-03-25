@@ -1,3 +1,6 @@
+git:
+  pagers:
+    - externalDiffCommand: "lg-difft.sh --color=always --display=side-by-side-show-both --syntax-highlight=on --tab-width=2"
 os:
   edit: "lg-nvim-open.sh {{filename}} 1"
   editAtLine: "lg-nvim-open.sh {{filename}} {{line}}"
@@ -5,4 +8,3 @@ os:
   editInTerminal: false
   open: "lg-nvim-open.sh {{filename}} 1"
   openDirInEditor: "lg-nvim-open.sh {{dir}}"
-

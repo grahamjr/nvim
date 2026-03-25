@@ -3,10 +3,11 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: $0 [-s session_name] [-v venv_path] [-d project_dir] 
+Usage: $0 [-s session_name] [-v venv_path] [-d project_dir] [-r]
   -s session_name   tmux session name (default: dev)
   -v venv_cmd       Command used to activate the environment. (optional)
   -d project_dir    directory to cd into before launching nvim (default: \$PWD)
+  -r, -restart      kill the existing session before starting a new one
 EOF
   exit 1
 }
@@ -22,12 +23,19 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 SESSION="dev"
 VENV_CMD=""
 PROJECT_DIR="$PWD"
+RESTART=0
 
-while getopts ":s:v:d:h" opt; do
+if [[ "${1:-}" == "-restart" ]]; then
+  RESTART=1
+  shift
+fi
+
+while getopts ":s:v:d:hr" opt; do
   case ${opt} in
     s) SESSION="$OPTARG" ;;
     v) VENV_CMD="$OPTARG" ;;
     d) PROJECT_DIR="$OPTARG" ;;
+    r) RESTART=1 ;;
     h) usage ;;
     :) echo "Missing arg for -$OPTARG"; usage ;;
     \?) echo "Invalid option -$OPTARG"; usage ;;
@@ -40,14 +48,19 @@ NVIM_SOCK="/tmp/nvim-${SESSION}.sock"
 HAS_CODEX=0
 SHARED_VENV_PATH=""
 PATH_PREFIX="${PROJECT_DIR}/.scripts:${SCRIPT_DIR}"
+SESSION_TMPDIR="${HOME}/tmp/tmux-${SESSION}"
 if command -v codex >/dev/null 2>&1; then
   HAS_CODEX=1
 fi
 
 # If session already exists, just attach (no re-sending)
 if tmux has-session -t "${SESSION}" 2>/dev/null; then
-  tmux attach-session -t "${SESSION}"
-  exit 0
+  if [ "${RESTART}" -eq 1 ]; then
+    tmux kill-session -t "${SESSION}"
+  else
+    tmux attach-session -t "${SESSION}"
+    exit 0
+  fi
 fi
 
 echo "Creating tmux session '${SESSION}'..."
@@ -55,12 +68,14 @@ echo "Creating tmux session '${SESSION}'..."
 tmux new-session -d -s "${SESSION}" -n BOOTSTRAP
 tmux set-option -t "${SESSION}" renumber-windows on
 BOOTSTRAP_PANE="${SESSION}:BOOTSTRAP.0"
+mkdir -p "${SESSION_TMPDIR}"
 
 # Shared environment for all windows created in this session.
 tmux set-environment -t "${SESSION}" PROJECT_DIR "${PROJECT_DIR}"
 tmux set-environment -t "${SESSION}" SCRIPT_DIR "${SCRIPT_DIR}"
 tmux set-environment -t "${SESSION}" NVIM_SOCK "${NVIM_SOCK}"
 tmux set-environment -t "${SESSION}" PATH "${PATH_PREFIX}:${PATH}"
+tmux set-environment -t "${SESSION}" TMPDIR "${SESSION_TMPDIR}"
 
 if [ -n "${VENV_CMD}" ]; then
   TMP_ENV_FILE="/tmp/tmux-${SESSION}-env.$$"
@@ -114,6 +129,7 @@ if [ -n "${SHARED_VENV_PATH}" ]; then
   sendln "$EDITOR_PANE" "source \"${SHARED_VENV_PATH}/bin/activate\""
 fi
 sendln "$EDITOR_PANE" "export PATH=\"${PATH_PREFIX}:\$PATH\""
+sendln "$EDITOR_PANE" "export TMPDIR=\"${SESSION_TMPDIR}\""
 # sendln "$EDITOR_PANE" "[ -f \"${OPENAI_KEY_ENV_FILE}\" ] && source \"${OPENAI_KEY_ENV_FILE}\""
 sendln "$EDITOR_PANE" "nvim . --listen \"${NVIM_SOCK}\""
 
@@ -123,6 +139,7 @@ if [ -n "${SHARED_VENV_PATH}" ]; then
   sendln "$GIT_PANE" "source \"${SHARED_VENV_PATH}/bin/activate\""
 fi
 sendln "$GIT_PANE" "export PATH=\"${PATH_PREFIX}:\$PATH\""
+sendln "$GIT_PANE" "export TMPDIR=\"${SESSION_TMPDIR}\""
 sendln "$GIT_PANE" "lazygit -ucf \"${SCRIPT_DIR}\"/tmux_session_config.yml"
 
 sleep 0.1
@@ -131,6 +148,7 @@ if [ -n "${SHARED_VENV_PATH}" ]; then
   sendln "$BUILD_PANE" "source \"${SHARED_VENV_PATH}/bin/activate\""
 fi
 sendln "$BUILD_PANE" "export PATH=\"${PATH_PREFIX}:\$PATH\""
+sendln "$BUILD_PANE" "export TMPDIR=\"${SESSION_TMPDIR}\""
 # sendln "$BUILD_PANE" "PATH=\"${SCRIPT_DIR}:\$PATH\" \"${SCRIPT_DIR}/start_codex_cmp_proxy.sh\" || true"
 
 sleep 0.1
@@ -140,6 +158,7 @@ if [ "${HAS_CODEX}" -eq 1 ]; then
     sendln "$GPT_PANE" "source \"${SHARED_VENV_PATH}/bin/activate\""
   fi
   sendln "$GPT_PANE" "export PATH=\"${PATH_PREFIX}:\$PATH\""
+  sendln "$GPT_PANE" "export TMPDIR=\"${SESSION_TMPDIR}\""
   sendln "$GPT_PANE" "codex"
 else
   echo "Info: 'codex' executable not found; skipping CODEX window."
