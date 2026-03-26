@@ -63,11 +63,29 @@ end, {desc = "insert one character" })
 -- make current file executable with `chmod +x`
 vim.keymap.set("n", "<leader>x", "<cmd>!chmod +x %<CR>", { silent = true })
 
+-- open current file in Windows Explorer (WSL)
+vim.keymap.set("n", "<leader>pw", function()
+    local file = vim.api.nvim_buf_get_name(0)
+    if file == "" then
+        vim.notify("No file path for current buffer", vim.log.levels.WARN)
+        return
+    end
+
+    local win_path = vim.fn.systemlist({ "wslpath", "-w", file })[1]
+    if not win_path or win_path == "" then
+        vim.notify("Failed to convert path with wslpath", vim.log.levels.ERROR)
+        return
+    end
+
+    vim.fn.jobstart({ "explorer.exe", "/select," .. win_path }, { detach = true })
+end, { desc = "Reveal current file in Explorer" })
+
+vim.keymap.set("n", "<leader>mc", "<cmd>SendSelectionToCodex<CR>", { desc = "Send location to CODEX" })
+vim.keymap.set("v", "<leader>mc", ":SendSelectionToCodex<CR>", { desc = "Send selection to CODEX" })
+
 -- disable arrow keys and mouse
 vim.keymap.set("", "<up>", "<nop>", { noremap = true })
 vim.keymap.set("", "<down>", "<nop>", { noremap = true })
 vim.keymap.set("", "<left>", "<nop>", { noremap = true })
 vim.keymap.set("", "<right>", "<nop>", { noremap = true })
 vim.opt.mouse = ""
-
-

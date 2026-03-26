@@ -16,14 +16,14 @@ if vim.fn.filereadable(als_bin) == 0 then
     if vim.fn.executable(als_bin) == 0 then
         vim.notify(
             "arduino-language-server not found. Install with: go install github.com/arduino/arduino-language-server@latest or with Mason",
-            vim.log.levels.WARN)
-        return
+            vim.log.levels.DEBUG)
+        return {}
     end -- if executable
 end     -- if readable
 
 if vim.fn.executable("arduino-cli") == 0 then
-    vim.notify("arduino-cli not found", vim.log.levels.WARN)
-    return
+    vim.notify("arduino-cli not found", vim.log.levels.DEBUG)
+    return {}
 end
 
 
@@ -37,17 +37,23 @@ config_path = config_path:gsub("\\\\", "\\")
 
 -- Helper: does a directory contain ANY .ino?
 local function contains_any_ino(dir)
-    local found = vim.fs.find(function(name, _)
-        return name:lower():sub(-4) == ".ino"
-    end, { path = dir, limit = 1, type = "file" })
-    return found ~= nil and #found > 0
+    local found = vim.fs.find(
+        function(name, _)
+            return name:lower():sub(-4) == ".ino"
+        end,
+        { path = dir, limit = 1, type = "file" }
+    )
+    local result = found ~= nil and #found > 0
+    if result then
+        vim.notify("found *.ino files in " .. dir .. ": " .. found[1], vim.log.levels.DEBUG)
+    end
+    return result
 end
 
 local function arduino_root_dir(_, on_dir)
     local path = vim.fn.getcwd()
     if contains_any_ino(path) then
-        on_dir(path)
-
+        vim.notify("Detected Arduino Project. Launching ALS...", vim.log.levels.INFO)
         -- Remove existing clangd instances.
         for _, client in pairs(vim.lsp.get_clients({ name = "clangd" })) do
             client.stop()
@@ -66,6 +72,9 @@ local function arduino_root_dir(_, on_dir)
                 end --if
             end,    --callback
         })
+        on_dir(path)
+    else
+        return nil
     end             -- if
 end                 -- arduino_root_dir
 

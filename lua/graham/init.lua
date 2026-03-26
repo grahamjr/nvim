@@ -16,3 +16,5 @@ require("graham.set")
 require("graham.remap")
 require("graham.lazy")
 require("graham.commands")
+vim.opt.exrc = true
+vim.opt.secure = true
